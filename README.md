@@ -50,34 +50,70 @@ aws sts get-caller-identity
 
 If your IAM user does not have Bedrock access, assign the **AmazonBedrockFullAccess** policy manually through the AWS console.
 
----
+### **3️⃣ Enable AWS Bedrock in Your Account**
 
-# **🔹 Step 2: Import DeepSeek-R1 Model to AWS Bedrock**
+AWS Bedrock is not enabled by default in every AWS account. To check if it's available:
 
-Unlike previous versions, AWS Bedrock now **only allows fine-tuning for custom models**, meaning the import **does not require deployment**.
+```bash
+aws bedrock list-foundation-models --region us-east-1
+```
 
-### **1️⃣ List Available Imported Models**
+If you receive an error, you need to request access via AWS Support.
+
+### **4️⃣ Create an S3 Bucket for Model Storage**
+
+AWS Bedrock requires an S3 bucket to store your custom models.
+
+```bash
+aws s3 mb s3://deepseek-r1-models --region us-east-1
+```
+
+Verify that the bucket was created:
+
+```bash
+aws s3 ls
+```
+
+### **5️⃣ Import the Model into AWS Bedrock**
+
+Instead of deploying the model through the UI, we will import it using the CLI.
+
+#### **Step 1: Prepare Model Files in S3**
+
+Upload the model files to your S3 bucket:
+
+```bash
+aws s3 sync DeepSeek-R1-Distill-Llama-8B s3://deepseek-r1-models/DeepSeek-R1-Distill-Llama-8B/
+```
+
+#### **Step 2: Start the Model Import Process**
+
+```bash
+aws bedrock create-model-import-job \
+  --model-name deepseek-r1 \
+  --role-arn arn:aws:iam::061051254608:role/your-bedrock-role \
+  --s3-location "s3://deepseek-r1-models/DeepSeek-R1-Distill-Llama-8B/"
+```
+
+Monitor the import process:
+
+```bash
+aws bedrock list-model-import-jobs --region us-east-1
+```
+
+#### **Step 3: Retrieve the Imported Model ARN**
+
+Once the import is complete, list your imported models:
 
 ```bash
 aws bedrock list-imported-models --region us-east-1
 ```
 
-This will return model details, including the **model ARN** you need.
-
-### **2️⃣ Store Model ARN for Future Use**
-
-From the above output, copy the `modelArn` of **DeepSeek-R1**.
-Example:
-
-```
-arn:aws:bedrock:us-east-1:061051254608:imported-model/762nd8bmvux1
-```
-
-This will be used in the FastAPI backend.
+Copy the `modelArn` from the output, as you will need it for inference requests.
 
 ---
 
-# **🔹 Step 3: Setting Up FastAPI Backend**
+# **🔹 Step 2: Setting Up FastAPI Backend**
 
 ### **1️⃣ Install Required Dependencies**
 
@@ -140,7 +176,7 @@ uvicorn app:app --reload
 
 ---
 
-# **🔹 Step 4: Setting Up React Frontend**
+# **🔹 Step 3: Setting Up React Frontend**
 
 ### **1️⃣ Create React App**
 
@@ -203,7 +239,5 @@ npm start
 ```
 
 ✅ UI available at **`http://localhost:3000`**
-
----
 
 🚀 **Enjoy using DeepSeek-R1 on AWS Bedrock!** 🎉
