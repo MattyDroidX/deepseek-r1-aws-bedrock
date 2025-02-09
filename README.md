@@ -1,5 +1,19 @@
 # Deploying DeepSeek-R1-Distill-Llama-8B on AWS Bedrock with FastAPI and React
 
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Prerequisites](#prerequisites)
+3. [Step 1: Clone the Model Repository from Hugging Face](#step-1-clone-the-model-repository-from-hugging-face)
+4. [Step 2: Configure AWS Services](#step-2-configure-aws-services)
+5. [Step 3: Upload the Model to S3](#step-3-upload-the-model-to-s3)
+6. [Step 4: Import the Model into Amazon Bedrock](#step-4-import-the-model-into-amazon-bedrock)
+7. [Step 5: Test the Model with Python](#step-5-test-the-model-with-python)
+8. [Step 6: Develop a FastAPI Backend](#step-6-develop-a-fastapi-backend)
+9. [Step 7: Create a React Frontend](#step-7-create-a-react-frontend)
+10. [Estimated Cost Breakdown](#estimated-cost-breakdown)
+11. [Conclusion](#conclusion)
+
 ## Overview
 
 This guide provides a step-by-step walkthrough for deploying the DeepSeek-R1-Distill-Llama-8B model on AWS Bedrock. It includes:
