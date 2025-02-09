@@ -1,0 +1,5 @@
+/bedrock-env
+# Exclude model files
+model-*.safetensors
+/node_modules/
+__pycache__
