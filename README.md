@@ -1,230 +1,198 @@
-# **Deploying DeepSeek-R1 on AWS Bedrock with FastAPI & React**
+# Deploying DeepSeek-R1-Distill-Llama-8B on AWS Bedrock with FastAPI and React
 
-## **📌 Overview**
+## Overview
 
-This guide walks you through **importing and using DeepSeek-R1 on AWS Bedrock**, setting up a **FastAPI backend** to interact with the model, and building a **React frontend** to create a simple UI for testing it. We will also cover **IAM role setup, CORS fixes, and common AWS Bedrock issues** to help you successfully deploy and share your custom model.
+This guide provides a step-by-step walkthrough for deploying the DeepSeek-R1-Distill-Llama-8B model on AWS Bedrock. It includes:
 
-We will be following the steps outlined in the AWS Community article on [Deploying DeepSeek-R1 on Amazon Bedrock](https://community.aws/content/2sECf0xbpgEIaUpAJcwbrSnIGfu/deploying-deepseek-r1-model-on-amazon-bedrock). This guide includes step-by-step details with **exact commands** to ensure everything works smoothly.
+- Cloning the repository containing the model.
+- Configuring AWS services (S3 bucket and Amazon Bedrock credentials).
+- Uploading the model to S3 and importing it into Amazon Bedrock.
+- Testing the model using a Python script.
+- Enhancing the deployment with a FastAPI backend and a React-based user interface.
 
----
+## Prerequisites
 
-# **🔹 Step 1: AWS Bedrock Setup & IAM Configuration**
+Ensure you have the following:
 
-### **1️⃣ Configure AWS CLI**
+- An AWS account with appropriate permissions.
+- AWS CLI installed and configured.
+- Python installed.
+- Basic knowledge of FastAPI and React.
 
-Ensure your AWS CLI is set up and configured:
+## Step 1: Clone the Model Repository from Hugging Face
+
+### 1.1 Install Git LFS (if not already installed)
+
+```bash
+# For Ubuntu/Debian
+sudo apt install git-lfs
+
+# For macOS (using Homebrew)
+brew install git-lfs
+
+# For Windows (using Chocolatey)
+choco install git-lfs
+```
+
+Enable Git LFS:
+
+```bash
+git lfs install
+```
+
+### 1.2 Clone the Repository
+
+```bash
+git clone https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+cd DeepSeek-R1-Distill-Llama-8B
+```
+
+### 1.3 Pull Large Files
+
+```bash
+git lfs pull
+```
+
+This ensures all model files are downloaded correctly.
+
+## Step 2: Configure AWS Services
+
+### 2.1 Set Up AWS CLI
 
 ```bash
 aws configure
 ```
 
-Enter your:
+Provide AWS Access Key ID, Secret Access Key, and set the default region to `us-east-1`.
 
-- **AWS Access Key ID**
-- **AWS Secret Access Key**
-- **Region (us-east-1 recommended)**
+### 2.2 Set Up Amazon Bedrock Credentials
 
-Verify your setup:
+Create an IAM role with:
 
-```bash
-aws s3 ls
-```
+- `AmazonBedrockFullAccess`
+- `AmazonS3FullAccess`
 
-This should list your S3 buckets if everything is configured correctly.
+Attach this role to your AWS account.
 
-### **2️⃣ IAM Role & Permissions**
+## Step 3: Upload the Model to S3
 
-To use AWS Bedrock, you need an **IAM user with proper permissions**.
-
-#### **Create a new IAM role with the following permissions:**
-
-1. **AmazonBedrockFullAccess** – Grants access to AWS Bedrock services.
-2. **AmazonS3FullAccess** – Enables access to S3 where models are stored.
-3. **AdministratorAccess** – (Optional) Grants full AWS permissions.
-
-Check IAM role assignment:
+The `upload_to_s3.sh` script will automatically create the S3 bucket (if it does not already exist) and then upload the model files.
 
 ```bash
-aws sts get-caller-identity
+chmod +x upload_to_s3.sh
+./upload_to_s3.sh
 ```
 
-If your IAM user does not have Bedrock access, assign the **AmazonBedrockFullAccess** policy manually through the AWS console.
+This script will:
 
-### **3️⃣ Enable AWS Bedrock in Your Account**
+- Create an S3 bucket named `deepseek-r1-distill-llama-8b` in the `us-east-1` region.
+- Upload all model files from the `DeepSeek-R1-Distill-Llama-8B` directory to the S3 bucket.
 
-AWS Bedrock is not enabled by default in every AWS account. To check if it's available:
+## Step 4: Import the Model into Amazon Bedrock
+
+1. Navigate to Amazon Bedrock in the AWS Console.
+2. Import the model using the S3 URI: `s3://deepseek-r1-distill-llama-8b/DeepSeek-R1-Distill-Llama-8B/`.
+3. Deploy the model.
+
+## Step 5: Test the Model with Python
+
+Once the model is imported and deployed in Amazon Bedrock, you can use `invoke_new_model.py` to test its functionality.
+
+### 5.1 Install Dependencies
 
 ```bash
-aws bedrock list-foundation-models --region us-east-1
+pip install boto3
 ```
 
-If you receive an error, you need to request access via AWS Support.
-
-### **4️⃣ Create an S3 Bucket for Model Storage**
-
-AWS Bedrock requires an S3 bucket to store your custom models.
+### 5.2 Run the Script
 
 ```bash
-aws s3 mb s3://deepseek-r1-models --region us-east-1
+python invoke_new_model.py
 ```
 
-Verify that the bucket was created:
+### 5.3 What This Script Does
+
+The `invoke_new_model.py` script:
+
+- Initializes an AWS Bedrock runtime client.
+- Uses the correct provisioned model ID to invoke the model.
+- Sends a prompt to the model (`"Provide a one-sentence summary of Albert Einstein's achievements."`).
+- Returns and prints the model’s response.
+
+The expected output will be a concise summary generated by the deployed model.
+
+## Step 6: Develop a FastAPI Backend
+
+### 6.1 Install Dependencies
 
 ```bash
-aws s3 ls
+pip install fastapi uvicorn
 ```
 
-### **5️⃣ Import the Model into AWS Bedrock**
-
-Instead of deploying the model through the UI, we will import it using the CLI.
-
-#### **Step 1: Prepare Model Files in S3**
-
-Upload the model files to your S3 bucket:
-
-```bash
-aws s3 sync DeepSeek-R1-Distill-Llama-8B s3://deepseek-r1-models/DeepSeek-R1-Distill-Llama-8B/
-```
-
-#### **Step 2: Start the Model Import Process**
-
-```bash
-aws bedrock create-model-import-job \
-  --model-name deepseek-r1 \
-  --role-arn arn:aws:iam::061051254608:role/your-bedrock-role \
-  --s3-location "s3://deepseek-r1-models/DeepSeek-R1-Distill-Llama-8B/"
-```
-
-Monitor the import process:
-
-```bash
-aws bedrock list-model-import-jobs --region us-east-1
-```
-
-#### **Step 3: Retrieve the Imported Model ARN**
-
-Once the import is complete, list your imported models:
-
-```bash
-aws bedrock list-imported-models --region us-east-1
-```
-
-Copy the `modelArn` from the output, as you will need it for inference requests.
-
----
-
-# **🔹 Step 2: Setting Up FastAPI Backend**
-
-### **1️⃣ Install Required Dependencies**
-
-```bash
-pip install fastapi uvicorn boto3 fastapi-cors
-```
-
-### **2️⃣ Create `app.py` Backend**
+### 6.2 Create `main.py`
 
 ```python
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 import boto3
-import json
-from pydantic import BaseModel
 
 app = FastAPI()
 
-# Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Change to frontend domain in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+bedrock = boto3.client('bedrock-runtime', region_name='us-east-1')
 
-client = boto3.client("bedrock-runtime", region_name="us-east-1")
-MODEL_ID = "arn:aws:bedrock:us-east-1:061051254608:imported-model/762nd8bmvux1"
-
-class QueryRequest(BaseModel):
-    prompt: str
-
-@app.post("/generate/")
-async def generate_text(request: QueryRequest):
-    payload = {
-        "prompt": request.prompt,
-        "max_tokens_to_sample": 100,
-        "temperature": 0.5,
-        "top_p": 0.9,
-        "stop_sequences": [".", "\n"]
-    }
-    response = client.invoke_model(
-        modelId=MODEL_ID,
-        body=json.dumps(payload),
-        accept="application/json",
-        contentType="application/json"
+@app.post("/predict/")
+async def predict(prompt: str):
+    response = bedrock.invoke_model(
+        modelId='your-model-id',
+        contentType='application/json',
+        accept='application/json',
+        body=prompt
     )
-    result = json.loads(response["body"].read().decode("utf-8"))
-    return {"response": result["generation"]}
+    result = response['body'].read().decode('utf-8')
+    return {"response": result}
 ```
 
-### **3️⃣ Start the FastAPI Server**
+### 6.3 Run the FastAPI Server
 
 ```bash
-uvicorn app:app --reload
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-✅ Now your backend is running at **`http://localhost:8000`**
+## Step 7: Create a React Frontend
 
----
-
-# **🔹 Step 3: Setting Up React Frontend**
-
-### **1️⃣ Create React App**
+### 7.1 Set Up React App
 
 ```bash
 npx create-react-app deepseek-ui
 cd deepseek-ui
-npm install axios
 ```
 
-### **2️⃣ Update `src/App.js`**
+### 7.2 Implement UI in `App.js`
 
-```javascript
+```jsx
 import React, { useState } from "react";
-import axios from "axios";
 
 function App() {
   const [prompt, setPrompt] = useState("");
   const [response, setResponse] = useState("");
 
-  const handleGenerate = async () => {
-    if (!prompt) return;
-    try {
-      const res = await axios.post("http://localhost:8000/generate/", {
-        prompt,
-      });
-      setResponse(res.data.response);
-    } catch (error) {
-      console.error("Error fetching response:", error);
-      setResponse("Failed to generate response.");
-    }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const res = await fetch("http://localhost:8000/predict/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt }),
+    });
+    const data = await res.json();
+    setResponse(data.response);
   };
 
   return (
-    <div style={{ textAlign: "center", padding: "20px" }}>
-      <h1>DeepSeek-R1 Chat</h1>
-      <textarea
-        rows="4"
-        cols="50"
-        placeholder="Enter a prompt..."
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-      />
-      <br />
-      <button onClick={handleGenerate} style={{ marginTop: "10px" }}>
-        Generate
-      </button>
-      <h2>Response:</h2>
-      <p>{response}</p>
+    <div>
+      <form onSubmit={handleSubmit}>
+        <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+        <button type="submit">Submit</button>
+      </form>
+      <div>{response}</div>
     </div>
   );
 }
@@ -232,12 +200,31 @@ function App() {
 export default App;
 ```
 
-### **3️⃣ Start React Frontend**
+### 7.3 Run the React App
 
 ```bash
 npm start
 ```
 
-✅ UI available at **`http://localhost:3000`**
+## Estimated Cost Breakdown
 
-🚀 **Enjoy using DeepSeek-R1 on AWS Bedrock!** 🎉
+### AWS Bedrock Pricing
+
+- The cost per 1M tokens varies by model; for DeepSeek-R1-Distill-Llama-8B, the estimated cost is **$0.002 per token**.
+- Since each response generates **512 tokens**, the cost per response would be **$1.024**.
+
+### S3 Storage Pricing
+
+- Amazon S3 standard storage costs **$0.023 per GB per month**.
+- Model storage size can vary; assuming **10GB**, monthly storage cost is **$0.23**.
+
+### Example Monthly Cost Estimate
+
+- Assuming **100,000** queries per month:
+  - Token cost: **$102,400** (100,000 \* $1.024 per response)
+  - Storage cost: **$0.23**
+- **Total estimated monthly cost: ~$102,400.23**
+
+## Conclusion
+
+You have successfully deployed the DeepSeek-R1-Distill-Llama-8B model on AWS Bedrock, set up a FastAPI backend, and built a React frontend to interact with the model. This setup enables scalable AI model hosting and usage, but careful cost estimation is recommended to optimize expenses.
